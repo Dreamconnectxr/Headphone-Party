@@ -53,6 +53,18 @@ button {
   box-shadow: 0 15px 45px rgba(8, 12, 24, 0.35);
 }
 
+.panel.alert {
+  background: rgba(255, 195, 40, 0.12);
+  border-color: rgba(255, 206, 86, 0.6);
+  color: #ffe4a3;
+}
+
+.panel.alert code {
+  background: rgba(0, 0, 0, 0.25);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.4rem;
+}
+
 .panel h2 {
   margin-top: 0;
   font-size: 1.25rem;
