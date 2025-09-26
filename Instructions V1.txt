@@ -1,0 +1,47 @@
+Konzept: Kopfhörerparty-Webapp
+
+Ziel:
+Jede*r soll auch ohne technisches Vorwissen eine legale Kopfhörerparty veranstalten können – über WLAN und ein lokales Netzwerk, anstatt über einen Radiosender.
+
+Ablauf:
+
+Der*die Host streamt per OBS oder einer anderen Streaming-Software an einen lokalen Server.
+
+Gäste scannen einen QR-Code und werden auf eine Website weitergeleitet, auf der sie den Stream empfangen können.
+
+Kernproblem:
+Alle Teilnehmenden sollen im gleichen Beat tanzen. Dafür muss das Audiosignal auf jedem Gerät lokal angepasst werden.
+
+Lösungsansätze:
+
+Automatische BPM-Erkennung: Auf dem Server und auf den Clients (Handys der Gäste). Das Audiosignal wird dann pro Gerät verzögert, bis es synchron ist.
+
+Manuelle BPM-Synchronisation: Gäste können über einen BPM-Tap-Button den Beat selbst einhämmern und so die Synchronisation einstellen.
+
+
+
+
+
+
+
+
+
+You are an expert full-stack engineer. Create a minimal, working project that lets a host stream audio locally and guests join over Wi-Fi by scanning a QR code. The app should support per-client delay and a BPM tap to align the beat.
+
+The app is called Headphone Party. it Allows users without great tech knowledge to setup a party where the host / DJ can stream audio towards a server. the Guests can open a website in the lokal network´. on this website, the audio stream will be loaded.
+
+You find the smartest, most efficient way, to make sure that each client can be in sync with all the others. Its your job to find the best strategy for this. Possible ideas are automatic BPM and phase detection on the Host side as welll as on the client side and then auto align. anothe roption would be to have each client tap the bpm and calculate the delay from that to delay the audiostream so that the client is in sync with everyone else. however these are just human thoughts and you are advised to think beyond this and to find a clever solution.
+
+The whole project should be done by you with minimal need for human control. You test functionality and improve your code by yourself.
+
+The final files for the app should be made in such a way, that the user just has to run files and not do command line themselves. all neccessary options to be set shall be doable in a GUI.
+
+Goals
+
+Local-only setup (same WLAN/LAN), no external cloud.
+
+Low-latency transport via WebRTC (WHIP/WHEP) using bluenviron/mediamtx in Docker. Provide RTMP ingest as a fallback.
+
+Frontend: TypeScript + Vite. Features: Play/Pause, connection status, BPM Tap, ms Delay (+/-), simple visualizer (optional), and a QR code page guests can scan.
+
+Clear README with step-by-step setup (Windows PowerShell and Bash).
