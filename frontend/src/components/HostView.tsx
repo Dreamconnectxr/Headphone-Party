@@ -20,6 +20,14 @@ function defaultMediamtxUrl() {
   }
 }
 
+function buildWhipUrl(baseUrl: string, streamName: string) {
+  return `${baseUrl.replace(/\/$/, '')}/whip/${streamName}`;
+}
+
+function buildWhepUrl(baseUrl: string, streamName: string) {
+  return `${baseUrl.replace(/\/$/, '')}/whep/${streamName}`;
+}
+
 export default function HostView({ info, state, onBroadcast, onClear }: HostViewProps) {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -28,10 +36,31 @@ export default function HostView({ info, state, onBroadcast, onClear }: HostView
   const [statusMessage, setStatusMessage] = useState('');
   const [mediamtxUrl, setMediamtxUrl] = useState(() => defaultMediamtxUrl());
   const [streamName, setStreamName] = useState(DEFAULT_STREAM_NAME);
+  const [captureMode, setCaptureMode] = useState<'microphone' | 'system'>('microphone');
   const [localBpm, setLocalBpm] = useState<number | null>(null);
   const tapsRef = useRef<number[]>([]);
 
-  const webhookUrl = useMemo(() => `${mediamtxUrl.replace(/\/$/, '')}/whip/${streamName}`, [mediamtxUrl, streamName]);
+  const whipUrl = useMemo(() => buildWhipUrl(mediamtxUrl, streamName), [mediamtxUrl, streamName]);
+  const whepUrl = useMemo(() => buildWhepUrl(mediamtxUrl, streamName), [mediamtxUrl, streamName]);
+
+  const stopBroadcast = useCallback(async () => {
+    pcRef.current?.getSenders().forEach((sender) => sender.track?.stop());
+    pcRef.current?.close();
+    pcRef.current = null;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setStatus('idle');
+    setStatusMessage('');
+
+    if (whipResourceRef.current) {
+      try {
+        await fetch(whipResourceRef.current, { method: 'DELETE' });
+      } catch (error) {
+        console.warn('Failed to release WHIP resource', error);
+      }
+      whipResourceRef.current = null;
+    }
+  }, []);
 
   const sendHostStatus = useCallback(async (connected: boolean) => {
     try {
@@ -76,10 +105,32 @@ export default function HostView({ info, state, onBroadcast, onClear }: HostView
     if (status === 'starting' || status === 'online') {
       return;
     }
+
     setStatus('starting');
-    setStatusMessage('Requesting audio capture…');
+    setStatusMessage(
+      captureMode === 'system' ? 'Pick a tab or window to capture audio…' : 'Requesting audio capture…',
+    );
+
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
+      let mediaStream: MediaStream;
+      if (captureMode === 'system') {
+        const captureStream = await navigator.mediaDevices.getDisplayMedia({
+          audio: { echoCancellation: false, noiseSuppression: false },
+          video: true,
+        });
+        const audioTracks = captureStream.getAudioTracks();
+        captureStream.getVideoTracks().forEach((track) => track.stop());
+        if (!audioTracks.length) {
+          throw new Error('System capture did not provide an audio track. Try the microphone mode instead.');
+        }
+        mediaStream = new MediaStream();
+        audioTracks.forEach((track) => mediaStream.addTrack(track));
+      } else {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false },
+        });
+      }
+
       streamRef.current = mediaStream;
       const pc = new RTCPeerConnection({ iceServers: [] });
       pcRef.current = pc;
@@ -90,7 +141,8 @@ export default function HostView({ info, state, onBroadcast, onClear }: HostView
       await pc.setLocalDescription(offer);
       await waitForIceGathering(pc);
 
-      const response = await fetch(webhookUrl, {
+      setStatusMessage('Publishing to MediaMTX…');
+      const response = await fetch(whipUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/sdp' },
         body: offer.sdp ?? '',
@@ -124,26 +176,7 @@ export default function HostView({ info, state, onBroadcast, onClear }: HostView
       setStatusMessage((error as Error).message ?? 'Failed to start broadcast');
       await stopBroadcast();
     }
-  }, [status, webhookUrl]);
-
-  const stopBroadcast = useCallback(async () => {
-    pcRef.current?.getSenders().forEach((sender) => sender.track?.stop());
-    pcRef.current?.close();
-    pcRef.current = null;
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    setStatus('idle');
-    setStatusMessage('');
-
-    if (whipResourceRef.current) {
-      try {
-        await fetch(whipResourceRef.current, { method: 'DELETE' });
-      } catch (error) {
-        console.warn('Failed to release WHIP resource', error);
-      }
-      whipResourceRef.current = null;
-    }
-  }, []);
+  }, [captureMode, status, stopBroadcast, whipUrl]);
 
   const handleTap = useCallback(() => {
     const now = performance.now();
@@ -179,11 +212,33 @@ export default function HostView({ info, state, onBroadcast, onClear }: HostView
   return (
     <section className="panel">
       <h2>Host Control Center</h2>
-      <p>Stream name: <strong>{streamName}</strong> · Guests join at <strong>{localAddresses || 'detecting…'}</strong></p>
+      <p>
+        Stream name: <strong>{streamName}</strong> · Guests join at{' '}
+        <strong>{localAddresses || 'detecting…'}</strong>
+      </p>
 
       <div className="panel" style={{ marginTop: '1rem' }}>
         <h3>1. Broadcast audio to MediaMTX</h3>
         <div className="controls">
+          <div className="field">
+            <label htmlFor="capture-mode">Audio source</label>
+            <select
+              id="capture-mode"
+              value={captureMode}
+              onChange={(event) => setCaptureMode(event.target.value as 'microphone' | 'system')}
+            >
+              <option value="microphone">Microphone / line-in (loopback cable)</option>
+              <option value="system">System audio (share a tab/window e.g. YouTube)</option>
+            </select>
+            {captureMode === 'system' ? (
+              <p className="hint">
+                Your browser will prompt you to pick a tab or window. Choose the one playing music (YouTube, etc.) and enable
+                <strong> Share audio</strong>. Video is discarded before sending to MediaMTX.
+              </p>
+            ) : (
+              <p className="hint">Use a loopback device (VB-Cable, BlackHole, etc.) to pipe your DJ software into the browser.</p>
+            )}
+          </div>
           <div className="field">
             <label htmlFor="host-mediamtx">MediaMTX URL</label>
             <input
@@ -203,33 +258,62 @@ export default function HostView({ info, state, onBroadcast, onClear }: HostView
               onChange={(event) => setStreamName(event.target.value)}
             />
           </div>
-          <button onClick={startBroadcast} disabled={status === 'starting' || status === 'online'}>
-            Start broadcast
-          </button>
-          <button onClick={stopBroadcast} disabled={status === 'idle'}>
-            Stop
-          </button>
+          <div className="field">
+            <button className="primary" onClick={() => void startBroadcast()} disabled={status === 'starting' || status === 'online'}>
+              {status === 'online' ? 'Broadcasting' : 'Start broadcast'}
+            </button>
+            <button onClick={() => void stopBroadcast()} disabled={status === 'idle'}>
+              Stop
+            </button>
+          </div>
         </div>
         <p className="readout">Status: {statusMessage || status}</p>
+        {status === 'error' && (
+          <p className="error">{statusMessage || 'Unable to publish audio. Check your device permissions or MediaMTX URL.'}</p>
+        )}
+        {status !== 'online' && captureMode === 'system' && (
+          <p className="hint">Tip: In Chrome, share the YouTube tab with audio to stream remote content to your guests.</p>
+        )}
       </div>
 
       <div className="panel" style={{ marginTop: '1rem' }}>
         <h3>2. Tap the beat</h3>
         <div className="controls">
           <button onClick={handleTap}>Tap</button>
-          <button onClick={handleBroadcastBpm} disabled={!localBpm}>Broadcast BPM</button>
-          <button onClick={handleClear}>Clear</button>
+          <button onClick={() => void handleBroadcastBpm()} disabled={!localBpm}>
+            Broadcast BPM
+          </button>
+          <button onClick={() => void handleClear()}>Clear</button>
           <span className="readout">Local BPM: {localBpm ? localBpm.toFixed(2) : '—'}</span>
           <span className="readout">Active BPM: {state.bpm ? state.bpm.toFixed(2) : '—'}</span>
         </div>
       </div>
 
       <div className="panel" style={{ marginTop: '1rem' }}>
-        <h3>3. Tips</h3>
+        <h3>3. Share these stream details</h3>
         <ul>
-          <li>Use a loopback or virtual cable to route your DJ software into the browser capture.</li>
-          <li>For tighter sync, ask guests to tap along and hit “Align to Beat”.</li>
-          <li>OBS or another encoder can push RTMP to <code>{`${mediamtxUrl.replace(/\/$/, '')}/live/${streamName}`}</code> as a fallback.</li>
+          <li>
+            WHIP publish URL (browser capture): <code>{whipUrl}</code>
+          </li>
+          <li>
+            WHEP playback URL (guests pull from here): <code>{whepUrl}</code>
+          </li>
+          <li>
+            OBS / RTMP fallback: <code>rtmp://[this machine]:1935/live</code> with stream key <code>{streamName}</code>
+          </li>
+        </ul>
+        <p className="hint">
+          Use RTMP if you want to stream from external software (OBS, ffmpeg, etc.). Guests automatically keep playing the WHEP
+          stream.
+        </p>
+      </div>
+
+      <div className="panel" style={{ marginTop: '1rem' }}>
+        <h3>4. Party health</h3>
+        <ul>
+          <li>Host connected: {state.hostConnected ? '✅ Online' : '⚠️ Offline'}</li>
+          <li>BPM broadcast: {state.bpm ? `${state.bpm.toFixed(2)} BPM` : '—'}</li>
+          <li>Guests should visit: <code>{localAddresses || 'http://localhost:4173'}</code></li>
         </ul>
       </div>
     </section>

@@ -1,6 +1,6 @@
 # Headphone Party
 
-Headphone Party is a local-first silent disco toolkit. It combines a MediaMTX streaming core with a React + Vite control surface so a DJ can broadcast audio across a Wi-Fi network. Guests scan a QR code, join from their browser, and stay phase-aligned with BPM-aware delay controls.
+Headphone Party is a local-first silent disco toolkit. It combines a [MediaMTX](https://github.com/bluenviron/mediamtx) streaming core with a React + Vite control surface so a DJ can broadcast audio across a Wi-Fi network. Guests scan a QR code, join from their browser, and stay phase-aligned with BPM-aware delay controls.
 
 ## Features
 
@@ -44,6 +44,20 @@ The script will:
 
 The Bash script performs the same steps as the PowerShell version and blocks while the Node.js server is running. Press `Ctrl+C` to stop the party when you are finished. Use `docker compose --profile streaming down` if you want to shut down MediaMTX after quitting the Node server.
 
+When startup completes, both scripts print the LAN URLs and stream credentials you need for browsers and OBS:
+
+```
+Headphone Party endpoints
+--------------------------
+Host control room:   http://192.168.1.42:4173/host
+Guest QR page:       http://192.168.1.42:4173/qr
+Browser WHIP ingest: http://192.168.1.42:8889/whip/party
+Guest WHEP pull:     http://192.168.1.42:8889/whep/party
+OBS RTMP server:     rtmp://192.168.1.42:1935/live (stream key: party)
+```
+
+Replace the IP with whichever interface you want to use; the Host UI also lets you override the MediaMTX URL and stream key on the fly.
+
 ## Streaming workflow
 
 1. **Spin everything up** using one of the start scripts above.
@@ -51,14 +65,17 @@ The Bash script performs the same steps as the PowerShell version and blocks whi
    - Broadcast controls for MediaMTX.
    - A BPM tap panel and broadcast button.
    - Helpful tips and the local join URLs detected from your network interfaces.
-3. Click **Start broadcast** to capture audio from your default input (consider using a virtual cable or loopback device for your DJ software). The page uses WHIP to publish to MediaMTX at `http://localhost:8889/whip/party` by default.
-4. If you prefer external tooling (OBS, ffmpeg, etc.), stream RTMP to `rtmp://<host>:1935/live/party`. Guests will keep working because the guest player pulls from the WHEP endpoint for the same stream key.
-5. Tap the beat until the BPM stabilizes, then press **Broadcast BPM** so everyone can lock on.
+3. Choose your audio source:
+   - **Microphone / line-in** captures your loopback cable or mixer via `getUserMedia`.
+   - **System audio** uses `getDisplayMedia` so you can share a browser tab or desktop audio (YouTube, Spotify, etc.). Browsers that require a video track have it discarded before publishing.
+4. Click **Start broadcast**. The host publishes over WHIP to MediaMTX at `http://<your-host>:8889/whip/<stream key>` (defaults to `party`).
+5. Want to use OBS/ffmpeg instead? Point them at `rtmp://<your-host>:1935/live` with the same stream key – guests automatically keep playing the WHEP stream.
+6. Tap the beat until the BPM stabilizes, then press **Broadcast BPM** so everyone can lock on.
 
 ## Guest experience
 
 1. Guests connect to the same Wi-Fi as the host.
-2. The host shares the QR code shown at <http://localhost:4173/qr>. The code resolves to the best LAN URL detected by the server.
+2. The host shares the QR code shown at <http://localhost:4173/qr>. The code resolves to the best LAN URL detected by the server (the start scripts print the same address for convenience).
 3. Guests hit **Play** on the player, optionally reconnect if network hiccups occur, and use the delay slider / nudge buttons to fine tune.
 4. Press **Align to Beat** to snap delay to the next beat interval using the host's BPM broadcast. Guests can also tap their own BPM and compare to the party BPM.
 
