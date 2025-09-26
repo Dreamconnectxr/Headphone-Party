@@ -1,0 +1,23 @@
+{
+  "name": "headphone-party",
+  "version": "1.0.0",
+  "description": "Local-only Headphone Party control server and web UI.",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "node server/index.js",
+    "start": "node server/index.js",
+    "install:frontend": "npm install --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "dev:frontend": "npm run dev --prefix frontend"
+  },
+  "keywords": [
+    "headphone",
+    "party",
+    "webrtc",
+    "audio",
+    "local"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs"
+}

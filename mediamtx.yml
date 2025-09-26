@@ -1,0 +1,22 @@
+logLevel: info
+rtmp:
+  enable: yes
+hls:
+  enable: no
+webrtc:
+  enable: yes
+  listenIP: 0.0.0.0
+  localIP: 0.0.0.0
+  # Advertise HTTP for local-only setups
+  localScheme: http
+  iceServers:
+    - stun:stun.l.google.com:19302
+whip:
+  enable: yes
+whep:
+  enable: yes
+paths:
+  party:
+    source: publisher
+  live:
+    source: publisher

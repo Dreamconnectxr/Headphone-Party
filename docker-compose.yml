@@ -1,0 +1,13 @@
+version: '3.9'
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:1.9.0
+    container_name: headphone-party-mediamtx
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+    command: ["/mediamtx", "/mediamtx.yml"]
+    environment:
+      - MTX_WEBRTCICESERVER=stun:stun.l.google.com:19302
+    profiles: [streaming]
