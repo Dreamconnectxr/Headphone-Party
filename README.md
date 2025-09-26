@@ -34,6 +34,9 @@ The script will:
 4. Start the Headphone Party control server on <http://localhost:4173>.
 
 > Need to use an existing MediaMTX instance? Run `./start.ps1 -SkipDocker` to keep Docker untouched.
+>
+> ⚠️ **Docker Desktop must be running** before you launch the script, otherwise MediaMTX cannot start and OBS/WHIP publishing
+> will fail.
 
 ### macOS / Linux (Bash or compatible shell)
 
@@ -61,7 +64,7 @@ Replace the IP with whichever interface you want to use; the Host UI also lets y
 ## Streaming workflow
 
 1. **Spin everything up** using one of the start scripts above.
-2. Open <http://localhost:4173/host> on the DJ computer. You should see:
+2. Open <http://localhost:4173/host> on the DJ computer (browsers only expose microphones on `localhost` or HTTPS). You should see:
    - Broadcast controls for MediaMTX.
    - A BPM tap panel and broadcast button.
    - Helpful tips and the local join URLs detected from your network interfaces.
@@ -104,6 +107,7 @@ Replace the IP with whichever interface you want to use; the Host UI also lets y
 
 | Symptom | Fix |
 | --- | --- |
+| Host page does not offer microphone capture | Open the host UI from <http://localhost:4173/host> or an HTTPS URL. Browsers block microphones on plain HTTP LAN addresses. |
 | Browser prompts for microphone but you hear nothing | Ensure the browser tab stays focused during capture, and confirm your virtual cable is set as the default input. |
 | Guests get "connection failed" | Check that MediaMTX is running and reachable on port 8889. The guest page shows the configured WHEP URL – adjust it if you host MediaMTX elsewhere. |
 | Audio drifts out of sync after a few songs | Have the DJ re-tap BPM and broadcast the new value, then guests hit **Align to Beat** again. |

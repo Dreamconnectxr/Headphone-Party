@@ -39,6 +39,13 @@ export default function HostView({ info, state, onBroadcast, onClear }: HostView
   const [captureMode, setCaptureMode] = useState<'microphone' | 'system'>('microphone');
   const [localBpm, setLocalBpm] = useState<number | null>(null);
   const tapsRef = useRef<number[]>([]);
+  const insecureCaptureWarning = useMemo(() => {
+    const hostname = window.location.hostname;
+    if (window.isSecureContext) {
+      return false;
+    }
+    return !['localhost', '127.0.0.1', '[::1]'].includes(hostname);
+  }, []);
 
   const whipUrl = useMemo(() => buildWhipUrl(mediamtxUrl, streamName), [mediamtxUrl, streamName]);
   const whepUrl = useMemo(() => buildWhepUrl(mediamtxUrl, streamName), [mediamtxUrl, streamName]);
@@ -216,6 +223,17 @@ export default function HostView({ info, state, onBroadcast, onClear }: HostView
         Stream name: <strong>{streamName}</strong> · Guests join at{' '}
         <strong>{localAddresses || 'detecting…'}</strong>
       </p>
+
+      {insecureCaptureWarning && (
+        <div className="panel alert">
+          <h3>Enable microphone capture</h3>
+          <p>
+            Browsers only expose microphones from a secure context. Open this page from{' '}
+            <code>http://localhost:4173/host</code> (or an HTTPS URL) on the DJ computer and share the LAN
+            links with guests separately.
+          </p>
+        </div>
+      )}
 
       <div className="panel" style={{ marginTop: '1rem' }}>
         <h3>1. Broadcast audio to MediaMTX</h3>
